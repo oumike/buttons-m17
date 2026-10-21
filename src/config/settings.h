@@ -37,11 +37,13 @@ struct Settings {
     // Audio / UI
     PttMode pttMode = PttMode::Momentary;
     uint8_t volume = 70;        // 0..100 %
-    int8_t micGainDb = 0;       // MIC_GAIN_MIN_DB..MIC_GAIN_MAX_DB
+    // Mic gain in dB, as in scheff-zello: the ES7243E's analogue PGA up to its
+    // 37.5 dB maximum, with anything above that added digitally.
+    int8_t micGainDb = 36;      // MIC_GAIN_MIN_DB..MIC_GAIN_MAX_DB
 };
 
-constexpr int MIC_GAIN_MIN_DB = -12;
-constexpr int MIC_GAIN_MAX_DB = 30;
+constexpr int MIC_GAIN_MIN_DB = 0;
+constexpr int MIC_GAIN_MAX_DB = 42;
 constexpr size_t ADMIN_PASS_MIN = 8;
 constexpr size_t CALLSIGN_MAX = 9;   // M17 address: 9 base-40 characters
 

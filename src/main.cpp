@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "app/status.h"
+#include "audio/audio_engine.h"
 #include "board/board_io.h"
 #include "board_config.h"
 #include "config/settings_store.h"
@@ -61,7 +62,10 @@ void setup() {
 
     const bool ioOk = boardIoBegin();
     statusUpdate([&](AppStatus &s) { s.expanderOk = ioOk; });
-    if (ioOk) checkFactoryReset();
+    if (ioOk) {
+        boardI2cScan();
+        checkFactoryReset();
+    }
 
     settingsBegin();
     const cfg::Settings s = settingsGet();
@@ -69,10 +73,12 @@ void setup() {
         Serial.println("[boot] no callsign configured: transmit inhibited");
 
     storageBegin();
+    audioBegin();
 
-    // Wi-Fi + web on core 0 next to the Wi-Fi stack; audio/vocoder tasks
-    // (milestones 3-4) take core 1.
+    // Wi-Fi + web on core 0 next to the Wi-Fi stack; audio (and Codec2 from
+    // milestone 4) on core 1.
     xTaskCreatePinnedToCore(netTask, "net", 8192, nullptr, 3, nullptr, 0);
+    xTaskCreatePinnedToCore(audioTask, "audio", 8192, nullptr, 10, nullptr, 1);
     xTaskCreatePinnedToCore(ledsTask, "leds", 2048, nullptr, 1, nullptr, 1);
 }
 

@@ -107,6 +107,18 @@ bool boardIoBegin() {
 
 bool boardIoReady() { return s_ready; }
 
+std::mutex &boardI2cMutex() { return s_mu; }
+
+void boardI2cScan() {
+    std::lock_guard<std::mutex> lk(s_mu);
+    String found;
+    for (uint8_t a = 1; a < 0x7F; ++a) {
+        Wire.beginTransmission(a);
+        if (Wire.endTransmission() == 0) found += String(" 0x") + String(a, HEX);
+    }
+    Serial.printf("[board] I2C devices:%s\n", found.length() ? found.c_str() : " none");
+}
+
 bool boardSetStatusLed(bool on) { return setBit(EXP_BIT_USER_LED, on); }
 bool boardSetAudioPaPower(bool on) { return setBit(EXP_BIT_AUDIO_PA_POWER, on); }
 bool boardSetUsbOtgPower(bool on) { return setBit(EXP_BIT_USB_OTG_EN, on); }

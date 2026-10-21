@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "app/status.h"
+#include "audio/audio_engine.h"
 #include "config/backup.h"
 #include "config/settings_store.h"
 #include "net/wifi_manager.h"
@@ -145,6 +146,14 @@ void handleStatus() {
                                             std::to_string(st.lateFrames) + " / " +
                                             std::to_string(st.lostFrames));
     h += row("Board I/O", st.expanderOk ? "ok" : "EXPANDER FAILED");
+    h += row("Audio", st.audio);
+    {
+        std::string mic = "slot 0: " + std::to_string(st.micPeakDb[0]) + " dBFS, slot 1: " +
+                          std::to_string(st.micPeakDb[1]) + " dBFS";
+        if (st.micSlot >= 0) mic += " (mic on slot " + std::to_string(st.micSlot) + ")";
+        if (st.i2sErrors) mic += ", I2S errors " + std::to_string(st.i2sErrors);
+        h += row("Mic peak", mic);
+    }
     h += row("SD card", storageDescribe());
     h += row("Uptime", std::to_string(millis() / 1000) + " s");
     h += row("Free heap / PSRAM",
@@ -165,6 +174,10 @@ void handleStatus() {
         }
         h += "</table>";
     }
+    h += "<h1>Audio test</h1><p>Echo test: hold the PTT button (the button on GPIO0) "
+         "and talk, then release to hear it played back (up to 10 s). In toggle PTT mode, "
+         "press once to start and again to stop.</p>"
+         "<form method=post action='/audio/tone'><button>Play 1 kHz test tone (2 s)</button></form>";
     h += "<form method=post action='/reboot'><button>Reboot</button></form>";
     h += PAGE_TAIL;
     sendHtml(200, h);
@@ -188,6 +201,11 @@ void handleApiStatus() {
     j += "\"rx_frames\":" + std::to_string(st.rxFrames) + ",";
     j += "\"late_frames\":" + std::to_string(st.lateFrames) + ",";
     j += "\"lost_frames\":" + std::to_string(st.lostFrames) + ",";
+    j += "\"audio\":\"" + jsonEscape(st.audio) + "\",";
+    j += "\"mic_peak_dbfs\":[" + std::to_string(st.micPeakDb[0]) + "," +
+         std::to_string(st.micPeakDb[1]) + "],";
+    j += "\"mic_slot\":" + std::to_string(st.micSlot) + ",";
+    j += "\"i2s_errors\":" + std::to_string(st.i2sErrors) + ",";
     j += "\"uptime_s\":" + std::to_string(millis() / 1000) + ",";
     j += "\"last_heard\":[";
     for (size_t i = 0; i < st.lastHeard.size(); ++i) {
@@ -208,6 +226,15 @@ std::string field(const char *label, const char *name, const std::string &val,
                   const char *extra = "") {
     return std::string("<p><label>") + label + "<input name=" + name + " value=\"" +
            htmlEscape(val) + "\" " + extra + "></label></p>";
+}
+
+std::string slider(const char *label, const char *name, int val, int lo, int hi,
+                   const char *unit) {
+    const std::string v = std::to_string(val);
+    return std::string("<p><label>") + label + ": <output id=o_" + name + ">" + v +
+           "</output>" + unit + "<input type=range name=" + name + " min=" +
+           std::to_string(lo) + " max=" + std::to_string(hi) + " value=" + v +
+           " oninput=\"o_" + name + ".value=this.value\"></label></p>";
 }
 
 std::string option(const char *value, const char *label, bool sel) {
@@ -243,10 +270,9 @@ void renderSettings(const cfg::Settings &s, const std::string &msg, bool isErr) 
     h += option("momentary", "Momentary (hold to talk)", s.pttMode == cfg::PttMode::Momentary);
     h += option("toggle", "Toggle (press to start/stop)", s.pttMode == cfg::PttMode::Toggle);
     h += "</select></label></p>";
-    h += field("Speaker volume (0-100)", "volume", std::to_string(s.volume),
-               "type=number min=0 max=100");
-    h += field("Mic gain (dB)", "micgain", std::to_string(s.micGainDb),
-               "type=number min=-12 max=30");
+    h += slider("Speaker volume", "volume", s.volume, 0, 100, "%");
+    h += slider("Mic gain (36 default, applies within a second of saving)", "micgain",
+                s.micGainDb, cfg::MIC_GAIN_MIN_DB, cfg::MIC_GAIN_MAX_DB, " dB");
     h += "<button>Save</button></form>";
     h += PAGE_TAIL;
     sendHtml(isErr ? 400 : 200, h);
@@ -357,6 +383,12 @@ void handleSetupPost() {
     Serial.printf("[web] Wi-Fi set to \"%s\"; rebooting\n", ssid.c_str());
     delay(1000);
     ESP.restart();
+}
+
+void handleAudioTone() {
+    if (!guard(false)) return;
+    audioRequestTone();
+    redirect("/");
 }
 
 void handleReboot() {
@@ -488,6 +520,7 @@ void webBegin() {
     s_srv.on("/setup", HTTP_GET, handleSetupGet);
     s_srv.on("/setup", HTTP_POST, handleSetupPost);
     s_srv.on("/reboot", HTTP_POST, handleReboot);
+    s_srv.on("/audio/tone", HTTP_POST, handleAudioTone);
     s_srv.on("/backup", HTTP_GET, handleBackupGet);
     s_srv.on("/backup/download", HTTP_GET, handleBackupDownload);
     s_srv.on("/backup/upload", HTTP_POST, handleBackupUploadDone, handleBackupUploadChunk);

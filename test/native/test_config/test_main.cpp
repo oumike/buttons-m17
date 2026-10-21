@@ -135,7 +135,7 @@ Settings sample() {
     s.listenOnly = true;
     s.pttMode = PttMode::Toggle;
     s.volume = 42;
-    s.micGainDb = -6;
+    s.micGainDb = 40;
     return s;
 }
 
@@ -157,7 +157,7 @@ void test_backup_round_trip() {
     TEST_ASSERT_TRUE(out.pttMode == PttMode::Toggle);
     TEST_ASSERT_TRUE(out.autoLink);
     TEST_ASSERT_EQUAL(42, out.volume);
-    TEST_ASSERT_EQUAL(-6, out.micGainDb);
+    TEST_ASSERT_EQUAL(40, out.micGainDb);
     // Admin password is never exported, and never overwritten by a restore.
     TEST_ASSERT_TRUE(y.find("secret-admin") == std::string::npos);
     TEST_ASSERT_EQUAL_STRING("device-admin", out.adminPass.c_str());

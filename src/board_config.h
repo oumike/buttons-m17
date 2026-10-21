@@ -58,16 +58,19 @@
 // settings. Not PTT: GPIO0 held through reset enters the ROM bootloader.
 #define FACTORY_RESET_HOLD_MS   5000
 
-// Audio — ES8311 DAC/PA + ES7243E mic ADC on one I2S bus (milestone 3).
+// Audio — ES8311 DAC/PA + ES7243E mic ADC on one I2S bus.
 #define I2S_MCLK                  10
 #define I2S_BCK                   11
 #define I2S_WS                    12
 #define I2S_DOUT                  16   // to ES8311
 #define I2S_DIN                   15   // from ES7243E
 #define AUDIO_ES8311_ADDR       0x18
-// TODO(hw): ES7243E I2C address is not recorded in camillia-mt (it never opens
-// the mic). Confirm from Seeed's schematic or an I2C scan before milestone 3.
-#define AUDIO_ES7243E_ADDR        -1
+// From TactilityProject/Tactility's Wio Tracker L2 device tree (camillia-mt
+// never opens the mic); also confirmed by the boot-time I2C scan log.
+#define AUDIO_ES7243E_ADDR      0x14
+// Both codecs run as I2S slaves at 16 kHz with MCLK = 256 * fs (4.096 MHz),
+// the ES7243E's native rate; dsp.h resamples to Codec2's 8 kHz.
+#define AUDIO_BUS_RATE         16000
 #define AUDIO_AMP_SETTLE_MS      250
 
 // microSD — 1-bit SD_MMC on dedicated pins; power is expander bit 14 and

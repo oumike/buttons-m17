@@ -4,9 +4,17 @@
 // become plain GPIO writes. Call boardIoBegin() before any other peripheral.
 
 #include <cstdint>
+#include <mutex>
 
 bool boardIoBegin();
 bool boardIoReady();
+
+// Every Wire user (expander, codecs, later touch/backlight) holds this for
+// each complete transaction.
+std::mutex &boardI2cMutex();
+
+// Log every address that ACKs on the shared I2C bus (boot diagnostics).
+void boardI2cScan();
 
 bool boardSetStatusLed(bool on);       // the single user LED
 bool boardSetAudioPaPower(bool on);

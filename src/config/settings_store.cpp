@@ -35,7 +35,7 @@ void settingsBegin() {
         s.listenOnly = p.getBool("listen_only", s.listenOnly);
         s.pttMode = static_cast<cfg::PttMode>(p.getUChar("ptt_mode", (uint8_t)s.pttMode));
         s.volume = p.getUChar("volume", s.volume);
-        s.micGainDb = p.getChar("mic_gain", s.micGainDb);
+        s.micGainDb = p.getChar("mic_pga", s.micGainDb);
         p.end();
     }
 
@@ -81,7 +81,7 @@ bool settingsSave(const cfg::Settings &s) {
     ok &= p.putBool("listen_only", s.listenOnly) == 1;
     ok &= p.putUChar("ptt_mode", (uint8_t)s.pttMode) == 1;
     ok &= p.putUChar("volume", s.volume) == 1;
-    ok &= p.putChar("mic_gain", s.micGainDb) == 1;
+    ok &= p.putChar("mic_pga", s.micGainDb) == 1;
     p.end();
 
     if (ok) {
