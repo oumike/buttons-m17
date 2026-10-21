@@ -10,7 +10,7 @@ License: **GPL-3.0-or-later** (see `LICENSE`).
 
 | # | Milestone | State |
 |---|-----------|-------|
-| 1 | Skeleton: tasks, NVS config, Wi-Fi + AP setup, web status page, settings backup, built-in reflector list | **done** (host-tested and builds; not yet run on hardware) |
+| 1 | Skeleton: tasks, NVS config, Wi-Fi + AP setup, web status page, settings backup, built-in reflector list | **done** (host-tested; on Wio: AP setup, Wi-Fi join, m17.local, web login verified) |
 | 2 | M17 core library (base-40 callsigns, CRC-16 0x5935, control and stream packet build/parse) + native tests | todo |
 | 3 | Audio: ES8311 / ES7243E init, mic → speaker loopback | todo |
 | 4 | Codec2 3200 encode/decode loopback (mic → Codec2 → speaker) | todo |
