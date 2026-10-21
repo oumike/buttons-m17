@@ -1,0 +1,11 @@
+# Wio Tracker L2, 16 MB flash. Two 6 MB OTA app slots (web-page OTA lands in
+# milestone 8), NVS for settings in the standard 0x9000 spot, and the rest kept
+# as littlefs for later (captured fixtures, last-heard history).
+# 0xC20000 + 0x3E0000 = 0x1000000, exactly 16 MB.
+# Name,     Type, SubType, Offset,   Size,
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xE000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x600000,
+app1,     app,  ota_1,   0x610000, 0x600000,
+coredump, data, coredump,0xC10000, 0x10000,
+littlefs, data, spiffs,  0xC20000, 0x3E0000,

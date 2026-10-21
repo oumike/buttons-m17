@@ -1,0 +1,8 @@
+.pio/
+.pio-core*/
+dist/
+logs/
+platformio_local.ini
+.vscode/
+.DS_Store
+__pycache__/
