@@ -12,7 +12,7 @@ License: **GPL-3.0-or-later** (see `LICENSE`).
 |---|-----------|-------|
 | 1 | Skeleton: tasks, NVS config, Wi-Fi + AP setup, web status page, settings backup, built-in reflector list | **done** (host-tested; on Wio: AP setup, Wi-Fi join, m17.local, web login verified) |
 | 2 | M17 core library (base-40 callsigns, CRC-16 0x5935, control and stream packet build/parse, META text, stream tracking) + native tests | **done** (host-tested only) |
-| 3 | Audio: ES8311 / ES7243E init, mic → speaker loopback | todo |
+| 3 | Audio: ES8311 / ES7243E init, 16 kHz I2S with 2:1 resampling to 8 kHz, PTT echo test, test tone, mic gain and volume sliders, limiter + native tests | **done** (on Wio: codecs init, tone clean, echo works; playback level could be louder) |
 | 4 | Codec2 3200 encode/decode loopback (mic → Codec2 → speaker) | todo |
 | 5 | Reflector client: CONN/LSTN, ACKN/NACK, PING/PONG keepalive, receive and play a live stream. Includes a Python fake-reflector harness | todo |
 | 6 | Transmit: PTT → stream → reflector, confirmed on the reflector dashboard | todo |
@@ -24,7 +24,7 @@ ESP32-S3 with 16 MB flash and 8 MB octal PSRAM. The pin map comes from camillia-
 
 | Function | On the Wio Tracker L2 |
 |----------|-----------------------|
-| Microphone | ES7243E mic ADC on the shared I2S bus (M3) |
+| Microphone | ES7243E mic ADC (I2C 0x14) on the shared I2S bus; the mic is on I2S slot 1 |
 | Speaker | ES8311 codec + PA (I2C 0x18). PA power on expander bit 12 |
 | PTT | GPIO0 (the only direct button) |
 | Status LED | user LED on the PCA9555 expander (bit 10) |
@@ -76,7 +76,7 @@ scripts/test.sh                              # host unit tests (pio test -e nati
 scripts/build-upload-monitor.sh --just-build # compile every device env, with a summary
 scripts/package.sh                           # dist/: factory image, OTA image and ELF
 scripts/build-upload-monitor.sh -W           # build, upload and monitor a Wio Tracker L2
-scripts/flash.sh wio-tracker-l2 /dev/cu.usbmodem*  # flash the factory image from dist/
+scripts/flash.sh wio-tracker-l2 /dev/cu.usbmodem*  # flash the newest dist/ image; NVS settings are kept
 ```
 
 To keep PlatformIO's core in a local directory, add a gitignored `platformio_local.ini` containing `[platformio]` and `core_dir = ...`. This works the same way as in camillia-mt.
@@ -91,10 +91,11 @@ src/
   config/             settings model + validation, NVS store, YAML backup, reflector list
   storage/            SD card mount + backup files
   net/                Wi-Fi manager (later: M17 reflector client)
-  app/                shared status (later: PTT state machine, stream router)
+  app/                shared status, PTT logic (later: stream router)
   ui/                 web server, HTTP guard, LEDs (later: display)
   m17/                callsign encoding, CRC, mrefd packets, META text, stream tracker
-  audio/ codec/       (milestones 3–4)
+  audio/              ES8311/ES7243E drivers, I2S engine, resampling, gain, limiter
+  codec/              (milestone 4)
 data/                 M17_Hosts.txt snapshot (input to tools/gen_reflectors.py)
 tools/                build-time helpers
 test/native/          host unit tests
@@ -109,8 +110,8 @@ Protocol and config code makes no hardware calls, so it builds and tests on the 
 - [ ] Is any M17 reflector cross-linked (URF + transcoder) to the D-Star "89C" module used by K8UNS? If so, this device could talk to that repeater's users.
 - [ ] Which Codec2 build to use on the ESP32-S3 (LGPL-2.1, GPL-compatible). It must be verified before M4.
 - [ ] mrefd silently ignores a `CONN` whose callsign fails its client regex (no `NACK` is sent). The M5 client should report "no reply" clearly. Unusual callsigns can still link with listen-only (`LSTN`), which uses a looser regex.
-- [ ] ES7243E I2C address on the Wio.
 - [ ] SD-detect polarity (assumed active-low).
+- [ ] Speaker playback is on the quiet side. Option: use the ES8311 DAC digital gain for volume (as scheff-zello does, up to +15 dB).
 
 ## Reference sources
 

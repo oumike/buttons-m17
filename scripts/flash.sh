@@ -9,6 +9,10 @@
 #                 dist/buttons-m17-<env>-vX.Y.Z.bin.
 #   --erase, -E   Erase the whole chip first. Wipes settings (Wi-Fi, admin
 #                 password, callsign) - save a backup from the web UI first.
+#
+# Without --erase, settings survive: the merged image pads the NVS partition
+# (0x9000-0xDFFF, see partitions_16mb_wio.csv) with 0xFF, so it is written in
+# two pieces that skip it.
 # Default port: /dev/ttyUSB0 (Linux) - use /dev/cu.usbmodem* on macOS.
 
 set -e
@@ -79,7 +83,14 @@ if [[ "$ERASE" == "1" ]]; then
         --before default_reset --after no_reset erase_flash
 fi
 
-echo "Flashing $FIRMWARE to $PORT..."
+NVS_START=$((0x9000))
+NVS_END=$((0xE000))
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+head -c "$NVS_START" "$FIRMWARE" > "$TMP/boot.bin"
+tail -c +"$((NVS_END + 1))" "$FIRMWARE" > "$TMP/rest.bin"
+
+echo "Flashing $FIRMWARE to $PORT (settings kept)..."
 "${ESPTOOL[@]}" --chip esp32s3 --port "$PORT" --baud 921600 \
     --before default_reset --after hard_reset \
-    write_flash -z 0x0 "$FIRMWARE"
+    write_flash -z 0x0 "$TMP/boot.bin" "$(printf '0x%X' "$NVS_END")" "$TMP/rest.bin"
