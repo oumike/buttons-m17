@@ -14,6 +14,7 @@
 #include "audio/dsp.h"
 #include "board/board_io.h"
 #include "board_config.h"
+#include "codec/voice_codec.h"
 #include "config/settings_store.h"
 
 namespace {
@@ -32,6 +33,7 @@ enum class Mode { Idle, Recording, Playback, Tone };
 
 bool s_ok = false;
 std::atomic<bool> s_toneRequest{false};
+std::atomic<bool> s_echoCodec2{true};
 
 void setAudioStatus(const std::string &s) {
     statusUpdate([&](AppStatus &st) { st.audio = s; });
@@ -93,6 +95,8 @@ bool audioBegin() {
 }
 
 void audioRequestTone() { s_toneRequest = true; }
+void audioSetEchoCodec2(bool on) { s_echoCodec2 = on; }
+bool audioEchoCodec2() { return s_echoCodec2; }
 
 void audioTask(void *) {
     if (!s_ok) vTaskDelete(nullptr);
@@ -100,6 +104,25 @@ void audioTask(void *) {
     auto *echo = static_cast<int16_t *>(
         heap_caps_malloc(ECHO_MAX_SAMPLES * sizeof(int16_t), MALLOC_CAP_SPIRAM));
     if (!echo) Serial.println("[audio] no PSRAM for echo buffer; echo test disabled");
+    auto *echoBits = static_cast<uint8_t *>(heap_caps_malloc(
+        ECHO_MAX_SAMPLES / FRAME_8K * voice::BYTES_PER_FRAME, MALLOC_CAP_SPIRAM));
+
+    // Separate encoder and decoder states, as full duplex will need.
+    voice::Codec2Voice enc, dec2;
+    const bool c2ok = echoBits && enc.begin() && dec2.begin();
+    Serial.printf("[audio] Codec2 3200 %s\n", c2ok ? "ready" : "FAILED");
+    statusUpdate([&](AppStatus &st) { st.codec2 = c2ok ? "Codec2 3200 ready" : "Codec2 FAILED"; });
+    auto reportCodec = [&]() {
+        char buf[128];
+        snprintf(buf, sizeof buf,
+                 "Codec2 3200: encode avg %.1f ms (max %.1f), decode avg %.1f ms (max %.1f) per 20 ms frame",
+                 enc.encodeAvgUs() / 1000.0f, enc.encodeMaxUs() / 1000.0f,
+                 dec2.decodeAvgUs() / 1000.0f, dec2.decodeMaxUs() / 1000.0f);
+        Serial.printf("[audio] %s; stack free %u bytes\n", buf,
+                      static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr)));
+        statusUpdate([&](AppStatus &st) { st.codec2 = buf; });
+    };
+    bool echoViaCodec = false;
 
     static int16_t rx[FRAME_16K * 2], tx[FRAME_16K * 2];
     int16_t slot[2][FRAME_16K], mic8[FRAME_8K], out8[FRAME_8K], out16[FRAME_16K];
@@ -173,7 +196,9 @@ void audioTask(void *) {
                 mode = Mode::Recording;
                 modeBlocks = 0;
                 echoLen = 0;
-                Serial.printf("[audio] echo: recording (mic slot %d)\n", micSlot);
+                echoViaCodec = c2ok && s_echoCodec2;
+                Serial.printf("[audio] echo: recording (mic slot %d, %s)\n", micSlot,
+                              echoViaCodec ? "via Codec2 3200" : "raw");
             } else if (s_toneRequest.exchange(false)) {
                 mode = Mode::Tone;
                 modeBlocks = 0;
@@ -183,6 +208,8 @@ void audioTask(void *) {
             s_toneRequest = false;   // never tone over a recording
             if (echoLen + FRAME_8K <= ECHO_MAX_SAMPLES) {
                 memcpy(echo + echoLen, mic8, sizeof mic8);
+                if (echoViaCodec)
+                    enc.encode(mic8, echoBits + echoLen / FRAME_8K * voice::BYTES_PER_FRAME);
                 echoLen += FRAME_8K;
             }
             if (!keyed) {
@@ -214,10 +241,14 @@ void audioTask(void *) {
         if (paSettleBlocks) {
             --paSettleBlocks;
         } else if (mode == Mode::Playback) {
-            memcpy(out8, echo + echoPos, sizeof out8);
+            if (echoViaCodec)
+                dec2.decode(echoBits + echoPos / FRAME_8K * voice::BYTES_PER_FRAME, out8);
+            else
+                memcpy(out8, echo + echoPos, sizeof out8);
             echoPos += FRAME_8K;
             if (echoPos >= echoLen) {
                 Serial.println("[audio] echo: done");
+                if (echoViaCodec) reportCodec();
                 mode = Mode::Idle;
             }
         } else if (mode == Mode::Tone) {

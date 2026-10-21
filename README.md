@@ -4,7 +4,7 @@ An internet-only [M17](https://m17project.org/) voice client for the ESP32-S3. I
 
 > **Licensed operators only.** The firmware will not transmit until a callsign has been configured, and it never transmits in listen-only mode. No callsign is hard-coded anywhere.
 
-License: **GPL-3.0-or-later** (see `LICENSE`).
+License: **GPL-3.0-or-later** (see `LICENSE`). Codec2 comes from the `sh123/esp32_codec2` library (Codec2 by David Rowe, LGPL-2.1, packaged as GPL-3.0).
 
 ## Status
 
@@ -13,7 +13,7 @@ License: **GPL-3.0-or-later** (see `LICENSE`).
 | 1 | Skeleton: tasks, NVS config, Wi-Fi + AP setup, web status page, settings backup, built-in reflector list | **done** (host-tested; on Wio: AP setup, Wi-Fi join, m17.local, web login verified) |
 | 2 | M17 core library (base-40 callsigns, CRC-16 0x5935, control and stream packet build/parse, META text, stream tracking) + native tests | **done** (host-tested only) |
 | 3 | Audio: ES8311 / ES7243E init, 16 kHz I2S with 2:1 resampling to 8 kHz, PTT echo test, test tone, mic gain and volume sliders, limiter + native tests | **done** (on Wio: codecs init, tone clean, echo works; playback level could be louder) |
-| 4 | Codec2 3200 encode/decode loopback (mic → Codec2 → speaker) | todo |
+| 4 | Codec2 3200 encode/decode loopback (mic → Codec2 → speaker), with timing on the status page | **done** (on Wio: Codec2 echo sounds right) |
 | 5 | Reflector client: CONN/LSTN, ACKN/NACK, PING/PONG keepalive, receive and play a live stream. Includes a Python fake-reflector harness | todo |
 | 6 | Transmit: PTT → stream → reflector, confirmed on the reflector dashboard | todo |
 | 7 | Polish: display, last heard, OTA, reconnect hardening | todo |
@@ -95,7 +95,7 @@ src/
   ui/                 web server, HTTP guard, LEDs (later: display)
   m17/                callsign encoding, CRC, mrefd packets, META text, stream tracker
   audio/              ES8311/ES7243E drivers, I2S engine, resampling, gain, limiter
-  codec/              (milestone 4)
+  codec/              Codec2 3200 wrapper (separate encoder/decoder states, call timing)
 data/                 M17_Hosts.txt snapshot (input to tools/gen_reflectors.py)
 tools/                build-time helpers
 test/native/          host unit tests
@@ -108,7 +108,6 @@ Protocol and config code makes no hardware calls, so it builds and tests on the 
 
 - [ ] Which reflector and module to use by default. `M17-M17 A` is a placeholder.
 - [ ] Is any M17 reflector cross-linked (URF + transcoder) to the D-Star "89C" module used by K8UNS? If so, this device could talk to that repeater's users.
-- [ ] Which Codec2 build to use on the ESP32-S3 (LGPL-2.1, GPL-compatible). It must be verified before M4.
 - [ ] mrefd silently ignores a `CONN` whose callsign fails its client regex (no `NACK` is sent). The M5 client should report "no reply" clearly. Unusual callsigns can still link with listen-only (`LSTN`), which uses a looser regex.
 - [ ] SD-detect polarity (assumed active-low).
 - [ ] Speaker playback is on the quiet side. Option: use the ES8311 DAC digital gain for volume (as scheff-zello does, up to +15 dB).

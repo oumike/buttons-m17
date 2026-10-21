@@ -26,6 +26,7 @@ struct AppStatus {
     int micPeakDb[2] = {-96, -96};   // per I2S slot, last 200 ms
     int micSlot = -1;                // slot the mic was found on
     uint32_t i2sErrors = 0;
+    std::string codec2 = "not started";   // state and timing
 
     uint32_t rxFrames = 0, lateFrames = 0, lostFrames = 0;
     std::vector<LastHeardEntry> lastHeard;

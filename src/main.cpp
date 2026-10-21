@@ -78,7 +78,7 @@ void setup() {
     // Wi-Fi + web on core 0 next to the Wi-Fi stack; audio (and Codec2 from
     // milestone 4) on core 1.
     xTaskCreatePinnedToCore(netTask, "net", 8192, nullptr, 3, nullptr, 0);
-    xTaskCreatePinnedToCore(audioTask, "audio", 8192, nullptr, 10, nullptr, 1);
+    xTaskCreatePinnedToCore(audioTask, "audio", 32768, nullptr, 10, nullptr, 1);
     xTaskCreatePinnedToCore(ledsTask, "leds", 2048, nullptr, 1, nullptr, 1);
 }
 

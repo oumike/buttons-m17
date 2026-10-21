@@ -153,6 +153,7 @@ void handleStatus() {
         if (st.micSlot >= 0) mic += " (mic on slot " + std::to_string(st.micSlot) + ")";
         if (st.i2sErrors) mic += ", I2S errors " + std::to_string(st.i2sErrors);
         h += row("Mic peak", mic);
+        h += row("Codec", st.codec2);
     }
     h += row("SD card", storageDescribe());
     h += row("Uptime", std::to_string(millis() / 1000) + " s");
@@ -177,6 +178,11 @@ void handleStatus() {
     h += "<h1>Audio test</h1><p>Echo test: hold the PTT button (the button on GPIO0) "
          "and talk, then release to hear it played back (up to 10 s). In toggle PTT mode, "
          "press once to start and again to stop.</p>"
+         "<form method=post action='/audio/echo-mode'><p><label>Echo path<select name=mode>" +
+         std::string("<option value=codec2") + (audioEchoCodec2() ? " selected" : "") +
+         ">Through Codec2 3200 (as on air)</option><option value=raw" +
+         (audioEchoCodec2() ? "" : " selected") +
+         ">Raw (no codec)</option></select></label></p><button>Set echo path</button></form>"
          "<form method=post action='/audio/tone'><button>Play 1 kHz test tone (2 s)</button></form>";
     h += "<form method=post action='/reboot'><button>Reboot</button></form>";
     h += PAGE_TAIL;
@@ -206,6 +212,7 @@ void handleApiStatus() {
          std::to_string(st.micPeakDb[1]) + "],";
     j += "\"mic_slot\":" + std::to_string(st.micSlot) + ",";
     j += "\"i2s_errors\":" + std::to_string(st.i2sErrors) + ",";
+    j += "\"codec2\":\"" + jsonEscape(st.codec2) + "\",";
     j += "\"uptime_s\":" + std::to_string(millis() / 1000) + ",";
     j += "\"last_heard\":[";
     for (size_t i = 0; i < st.lastHeard.size(); ++i) {
@@ -385,6 +392,12 @@ void handleSetupPost() {
     ESP.restart();
 }
 
+void handleAudioEchoMode() {
+    if (!guard(false)) return;
+    audioSetEchoCodec2(arg("mode") != "raw");
+    redirect("/");
+}
+
 void handleAudioTone() {
     if (!guard(false)) return;
     audioRequestTone();
@@ -521,6 +534,7 @@ void webBegin() {
     s_srv.on("/setup", HTTP_POST, handleSetupPost);
     s_srv.on("/reboot", HTTP_POST, handleReboot);
     s_srv.on("/audio/tone", HTTP_POST, handleAudioTone);
+    s_srv.on("/audio/echo-mode", HTTP_POST, handleAudioEchoMode);
     s_srv.on("/backup", HTTP_GET, handleBackupGet);
     s_srv.on("/backup/download", HTTP_GET, handleBackupDownload);
     s_srv.on("/backup/upload", HTTP_POST, handleBackupUploadDone, handleBackupUploadChunk);
