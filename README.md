@@ -11,7 +11,7 @@ License: **GPL-3.0-or-later** (see `LICENSE`).
 | # | Milestone | State |
 |---|-----------|-------|
 | 1 | Skeleton: tasks, NVS config, Wi-Fi + AP setup, web status page, settings backup, built-in reflector list | **done** (host-tested; on Wio: AP setup, Wi-Fi join, m17.local, web login verified) |
-| 2 | M17 core library (base-40 callsigns, CRC-16 0x5935, control and stream packet build/parse) + native tests | todo |
+| 2 | M17 core library (base-40 callsigns, CRC-16 0x5935, control and stream packet build/parse, META text, stream tracking) + native tests | **done** (host-tested only) |
 | 3 | Audio: ES8311 / ES7243E init, mic → speaker loopback | todo |
 | 4 | Codec2 3200 encode/decode loopback (mic → Codec2 → speaker) | todo |
 | 5 | Reflector client: CONN/LSTN, ACKN/NACK, PING/PONG keepalive, receive and play a live stream. Includes a Python fake-reflector harness | todo |
@@ -93,7 +93,8 @@ src/
   net/                Wi-Fi manager (later: M17 reflector client)
   app/                shared status (later: PTT state machine, stream router)
   ui/                 web server, HTTP guard, LEDs (later: display)
-  m17/ audio/ codec/  (milestones 2–4)
+  m17/                callsign encoding, CRC, mrefd packets, META text, stream tracker
+  audio/ codec/       (milestones 3–4)
 data/                 M17_Hosts.txt snapshot (input to tools/gen_reflectors.py)
 tools/                build-time helpers
 test/native/          host unit tests
@@ -107,6 +108,7 @@ Protocol and config code makes no hardware calls, so it builds and tests on the 
 - [ ] Which reflector and module to use by default. `M17-M17 A` is a placeholder.
 - [ ] Is any M17 reflector cross-linked (URF + transcoder) to the D-Star "89C" module used by K8UNS? If so, this device could talk to that repeater's users.
 - [ ] Which Codec2 build to use on the ESP32-S3 (LGPL-2.1, GPL-compatible). It must be verified before M4.
+- [ ] mrefd silently ignores a `CONN` whose callsign fails its client regex (no `NACK` is sent). The M5 client should report "no reply" clearly. Unusual callsigns can still link with listen-only (`LSTN`), which uses a looser regex.
 - [ ] ES7243E I2C address on the Wio.
 - [ ] SD-detect polarity (assumed active-low).
 
